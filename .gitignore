@@ -1,0 +1,13 @@
+target/
+.classpath
+.project
+.settings/
+.vscode/
+.idea/
+node_modules/
+*.log
+*.iml
+.DS_Store
+build/
+.gradle/
+lib/
