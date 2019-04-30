@@ -247,4 +247,13 @@ delete from t_item where id=?
 delete from t_item where id=?
 delete from t_order where id=?
 ```
+另外一種情形是使用spring data的`deleteAll(T entity)`方法會產生下面sql
+``` sql
+insert into t_item (name, order_id, id) values (?, ?, ?)
+delete from t_item where id=?
+delete from t_item where id=?
+delete from t_order where id=?
+delete from t_item where id=?
+```
+不確定是不是bug?總之不要兩邊都加`CascadeType.REMOVE`是最安全的
 * 一對一關係不在此限

@@ -58,6 +58,8 @@ public class CascadeRemoveTest {
         for (Item item : items) {
             entityManager.persist(item);
         }
+//        entityManager.flush();
+//        entityManager.clear();
     }
 
     @After
@@ -75,10 +77,11 @@ public class CascadeRemoveTest {
 
     @Test
     public void removeItemTest() {
-//        for (Item item : items) {
-//            entityManager.remove(item);
-//        }
-        entityManager.remove(items.get(0));
+        for (Item item : items) {
+            entityManager.remove(item);
+        }
+//        entityManager.remove(items.get(0));
+//        itemRepository.deleteAll(items);
         Assert.assertEquals(0, orderRepository.count());
         Assert.assertEquals(0, itemRepository.count());
     }
