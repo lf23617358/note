@@ -10,7 +10,7 @@ public class Item {
     private Integer id;
     @Column
     private String name;
-    @ManyToOne(fetch = FetchType.LAZY, targetEntity = Order.class, cascade = CascadeType.PERSIST)
+    @ManyToOne(fetch = FetchType.LAZY, targetEntity = Order.class, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "order_id")
     private Order order;
 

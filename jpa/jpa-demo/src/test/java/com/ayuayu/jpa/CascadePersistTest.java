@@ -17,7 +17,6 @@ import java.util.List;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
-//@DataJpaTest
 public class CascadePersistTest {
 
     @Autowired

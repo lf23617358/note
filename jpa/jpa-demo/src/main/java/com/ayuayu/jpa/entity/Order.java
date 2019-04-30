@@ -11,7 +11,7 @@ public class Order {
     private Integer id;
     @Column
     private String name;
-    @OneToMany(mappedBy = "order", targetEntity = Item.class, fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    @OneToMany(mappedBy = "order", targetEntity = Item.class, fetch = FetchType.LAZY,cascade = CascadeType.REMOVE)
     private List<Item> items;
 
     public Integer getId() {
