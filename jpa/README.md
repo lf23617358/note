@@ -1,7 +1,225 @@
-# JPA Cascade
-## CascadeType.PERSIST
-* 在新增DB紀錄時被關聯的物件也會一併新增
+# JPA
+
+## JPA Life Cycle
+
+![alt JPA生命週期](life-cycle.png "JPA生命週期")
+
+## JPA Relationship
+
+* 方向性
+* 雙向關係應該總是更新他們之間的關聯， __Parent__ 應該有 `addChild(child)` and `removeChild(child)`方法，避免資料錯亂引發其他的問題
+
+## JPA Cascade
+
+| JPA EntityManager action | JPA CascadeType |
+|:---:|:---:|
+| `detach(entity)` | DETACH |
+| `merge(entity)` | MERGE |
+| `persist(entity)` | PERSIST |
+| `refresh(entity)` | REFRESH |
+| `remove(entity)` | REMOVE |
+
+* 最好只在 __Parent__ 方加上CascadeType，在 __Child__ 加同常不太有用，而且一些行為可能會跟你想的不同
+* 有時候CascadeType即使不加但還是會有cascade的效果，是因為Hibernate有一些檢查的機制造成
+
+## Cascading best practices
+
+### One-To-One
+
+#### One-To-One PERSIST
+
+``` sql
+insert
+into
+    post
+    (name, id)
+values
+    ('Post Name', 1)
+
+insert
+into
+    post_details
+    (created_on, visible, post_id)
+values
+    ('2019-05-01 10:17:19.000', false, 1)
+```
+
+#### One-To-One MERGE
+
+``` sql
+select
+    post0_.id as id1_0_1_,
+    post0_.name as name2_0_1_,
+    postdetail1_.post_id as post_id3_1_0_,
+    postdetail1_.created_on as created_1_1_0_,
+    postdetail1_.visible as visible2_1_0_
+from
+    post post0_
+left outer join
+    post_details postdetail1_
+        on post0_.id=postdetail1_.post_id
+where
+    post0_.id=1
+
+update
+    post_details
+set
+    created_on='2019-05-01 10:17:19.000',
+    visible=true
+where
+    post_id=1
+
+update
+    post
+set
+    name='The New Post Name'
+where
+    id=1
+```
+
+#### One-To-One REMOVE
+
+``` sql
+delete
+from
+    post_details
+where
+    post_id=1
+
+delete
+from
+    post
+where
+    id=1
+```
+
+#### One-To-One Orphan Removal
+
+``` sql
+delete
+from
+    post_details
+where
+    post_id=1
+```
+
+### One-To-Many
+
+#### One-To-Many PERSIST
+
+``` sql
+insert
+into
+    post
+    (name, id)
+values
+    ('Post Name', 1)
+
+insert
+into
+    comment
+    (post_id, review, id)
+values
+    (1, 'Good post!', 1)
+
+insert
+into
+    comment
+    (post_id, review, id)
+values
+    (1, 'Nice post!', 2)
+```
+
+#### One-To-Many MERGE
+
+``` sql
+select
+    post0_.id as id1_4_2_,
+    post0_.name as name2_4_2_,
+    comments1_.post_id as post_id3_2_4_,
+    comments1_.id as id1_2_4_,
+    comments1_.id as id1_2_0_,
+    comments1_.post_id as post_id3_2_0_,
+    comments1_.review as review2_2_0_,
+    postdetail2_.post_id as post_id3_5_1_,
+    postdetail2_.created_on as created_1_5_1_,
+    postdetail2_.visible as visible2_5_1_
+from
+    post post0_
+left outer join
+    comment comments1_
+        on post0_.id=comments1_.post_id
+left outer join
+    post_details postdetail2_
+        on post0_.id=postdetail2_.post_id
+where
+    post0_.id=1
+
+update
+    post
+set
+    name='Post Name'
+where
+    id=1
+
+update
+    comment
+set
+    post_id=1,
+    review='Keep up the good work!'
+where
+    id=2
+```
+
+#### One-To-Many REMOVE
+
+``` sql
+delete
+from
+    comment
+where
+    id=1
+
+delete
+from
+    comment
+where
+    id=2
+
+delete
+from
+    post
+where
+    id=1
+```
+
+#### One-To-Many Orphan Removal
+
+``` sql
+delete
+from
+    comment
+where
+    id=1
+```
+
+如果沒有加上`orphanRemoval = true`，那執行同樣測試會把Child的 _FOREIGN KEY_ 設成 _null_ ，如下SQL所示
+
+``` sql
+update
+    comment
+set
+    post_id=1,
+    review='Good post!'
+where
+    id=1
+```
+
+----
+* CascadeType.PERSIST在Parent物件呼叫JPA的`persist()`方法時，Child物件也會一併呼叫`persist()`
+
 ### 執行下列測試，展示不同情境下不同結果
+
 ``` java
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -58,14 +276,16 @@ public class CascadePersistTest {
         items.add(item1);
         items.add(item2);
         order.setItems(items);
-        
+
         itemRepository.saveAll(items);
         Assert.assertEquals(1, orderRepository.count());
         Assert.assertEquals(2, itemRepository.count());
     }
 }
 ```
+
 * __Case1__ _Order_, _Item_ 都不加`CascadeType.PERSIST`
+
 1. Save Order  
 只有 _Order_ 會被儲存
 ``` sql
@@ -113,7 +333,7 @@ insert into t_item (name, order_id, id) values (?, ?, ?)
 同上
 
 ## CascadeType.REMOVE
-* 在刪除DB紀錄時被關聯的物件也會一併刪除
+* 在Parent物件呼叫JPA的`remove()`方法時，Child物件也會一併呼叫`remove()`
 ### 執行下列測試，展示不同情境下不同結果
 ``` java
 @RunWith(SpringRunner.class)
@@ -257,3 +477,131 @@ delete from t_item where id=?
 ```
 不確定是不是bug?總之不要兩邊都加`CascadeType.REMOVE`是最安全的
 * 一對一關係不在此限
+
+## CascadeType.MERGE
+* 在Parent物件呼叫JPA的`merge()`方法時，Child物件也會一併呼叫`merge()`
+### 執行下列測試，展示不同情境下不同結果
+``` java
+@RunWith(SpringRunner.class)
+@SpringBootTest
+@Transactional
+public class CascadeMergeTest {
+
+    @Autowired
+    private OrderRepository orderRepository;
+    @Autowired
+    private ItemRepository itemRepository;
+
+    @Autowired
+    private EntityManager entityManager;
+
+    private Order order;
+
+    private List<Item> items;
+
+    @Before
+    public void setUp() {
+        order = new Order();
+        order.setName("order1");
+
+        Item item1 = new Item();
+        item1.setName("item1_order1");
+        item1.setOrder(order);
+
+        Item item2 = new Item();
+        item2.setName("item2_order1");
+        item2.setOrder(order);
+
+        items = new ArrayList<>();
+        items.add(item1);
+        items.add(item2);
+        order.setItems(items);
+
+        entityManager.persist(order);
+        for (Item item : items) {
+            entityManager.persist(item);
+        }
+    }
+
+    @After
+    public void tearDown() {
+        Query query = entityManager.createNativeQuery("delete from t_item");
+        query.executeUpdate();
+    }
+
+    @Test
+    public void mergeOrderTest() {
+        order.setName("new order1");
+        entityManager.merge(order);
+        Assert.assertEquals(0, orderRepository.count());
+        Assert.assertEquals(0, itemRepository.count());
+    }
+
+    @Test
+    public void mergeItemTest() {
+        for (Item item : items) {
+            item.setName("new " + item.getName());
+            entityManager.merge(item);
+        }
+        Assert.assertEquals(0, orderRepository.count());
+        Assert.assertEquals(0, itemRepository.count());
+    }
+}
+```
+* __Case1__ _Order_, _Item_ 都不加`CascadeType.MERGE`
+1. Merger Order  
+只有 _Order_ 會被更新
+``` sql
+update t_order set name=? where id=?
+```
+2. Merger Item
+只有 _Item_ 會被更新
+``` sql
+update t_item set name=?, order_id=? where id=?
+update t_item set name=?, order_id=? where id=?
+```
+
+* __Case2__ _Order_ 加`CascadeType.MERGE`, _Item_ 不加
+1. Merger Order  
+_Order_, _Item_ 都會被更新
+``` sql
+update t_item set name=?, order_id=? where id=?
+update t_order set name=? where id=?
+update t_item set name=?, order_id=? where id=?
+```
+2. Merger Item
+只有 _Item_ 會被更新
+``` sql
+update t_item set name=?, order_id=? where id=?
+update t_item set name=?, order_id=? where id=?
+```
+
+* __Case3__ _Order_ 不加, _Item_ 加`CascadeType.MERGE`
+1. Merger Order  
+_Order_, _Item_ 都會被更新
+``` sql
+update t_order set name=? where id=?
+```
+2. Merger Item
+只有 _Item_ 會被更新
+``` sql
+update t_order set name=? where id=?
+update t_item set name=?, order_id=? where id=?
+update t_item set name=?, order_id=? where id=?
+```
+
+* __Case4__ _Order_, _Item_ 都加`CascadeType.MERGE`
+1. Merger Order  
+_Order_, _Item_ 都會被更新
+``` sql
+update t_item set name=?, order_id=? where id=?
+update t_order set name=? where id=?
+update t_item set name=?, order_id=? where id=?
+```
+2. Merger Item
+只有 _Item_ 會被更新
+``` sql
+update t_order set name=? where id=?
+update t_item set name=?, order_id=? where id=?
+update t_item set name=?, order_id=? where id=?
+```
