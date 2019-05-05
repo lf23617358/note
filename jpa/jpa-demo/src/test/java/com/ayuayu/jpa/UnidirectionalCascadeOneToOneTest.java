@@ -1,9 +1,11 @@
 package com.ayuayu.jpa;
 
+import com.ayuayu.jpa.entity.BranchMerge;
+import com.ayuayu.jpa.entity.Commit;
 import com.ayuayu.jpa.entity.Post;
 import com.ayuayu.jpa.entity.PostDetails;
-import com.ayuayu.jpa.repository.PostDetailsRepository;
-import com.ayuayu.jpa.repository.PostRepository;
+import com.ayuayu.jpa.repository.BranchMergeRepository;
+import com.ayuayu.jpa.repository.CommitRepository;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -20,23 +22,22 @@ import javax.persistence.PersistenceContext;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
-public class CascadeOneToOneTest {
+public class UnidirectionalCascadeOneToOneTest {
 
     @PersistenceContext
     private EntityManager entityManager;
 
     @Autowired
-    private PostRepository postRepository;
+    private CommitRepository commitRepository;
 
     @Autowired
-    private PostDetailsRepository postDetailsRepository;
+    private BranchMergeRepository branchMergeRepository;
 
     @Autowired
     private TransactionTemplate transactionTemplate;
 
     @Before
     public void setUp() {
-//        transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     @After
@@ -44,8 +45,8 @@ public class CascadeOneToOneTest {
         transactionTemplate.execute(new TransactionCallbackWithoutResult() {
             @Override
             protected void doInTransactionWithoutResult(TransactionStatus status) {
-                postDetailsRepository.deleteAllInBatch();
-                postRepository.deleteAllInBatch();
+                commitRepository.deleteAllInBatch();
+                branchMergeRepository.deleteAllInBatch();
             }
         });
     }
@@ -54,15 +55,16 @@ public class CascadeOneToOneTest {
     @Test
     public void testPersist() {
         transactionTemplate.execute(status -> {
-            Post post = new Post();
-            post.setName("Post Name");
+            BranchMerge branchMerge = new BranchMerge();
+            branchMerge.setFromBranch("test");
+            branchMerge.setToBranch("test2");
 
-            PostDetails details = new PostDetails();
+            Commit commit = new Commit();
+            commit.setComment("test");
+            commit.setBranchMerge(branchMerge);
 
-            post.addDetails(details);
-
-            entityManager.persist(post);
-            return post;
+            entityManager.persist(commit);
+            return commit;
         });
     }
 

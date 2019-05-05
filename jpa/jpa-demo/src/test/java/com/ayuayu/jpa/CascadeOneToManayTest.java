@@ -1,8 +1,8 @@
 package com.ayuayu.jpa;
 
+import com.ayuayu.jpa.entity.Comment;
 import com.ayuayu.jpa.entity.Post;
-import com.ayuayu.jpa.entity.PostDetails;
-import com.ayuayu.jpa.repository.PostDetailsRepository;
+import com.ayuayu.jpa.repository.CommentRepository;
 import com.ayuayu.jpa.repository.PostRepository;
 import org.junit.After;
 import org.junit.Before;
@@ -20,7 +20,7 @@ import javax.persistence.PersistenceContext;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
-public class CascadeOneToOneTest {
+public class CascadeOneToManayTest {
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -29,7 +29,7 @@ public class CascadeOneToOneTest {
     private PostRepository postRepository;
 
     @Autowired
-    private PostDetailsRepository postDetailsRepository;
+    private CommentRepository commentRepository;
 
     @Autowired
     private TransactionTemplate transactionTemplate;
@@ -43,7 +43,7 @@ public class CascadeOneToOneTest {
         transactionTemplate.execute(new TransactionCallbackWithoutResult() {
             @Override
             protected void doInTransactionWithoutResult(TransactionStatus status) {
-                postDetailsRepository.deleteAllInBatch();
+                commentRepository.deleteAllInBatch();
                 postRepository.deleteAllInBatch();
             }
         });
@@ -56,9 +56,13 @@ public class CascadeOneToOneTest {
             Post post = new Post();
             post.setName("Post Name");
 
-            PostDetails details = new PostDetails();
+            Comment comment1 = new Comment();
+            comment1.setReview("Good post!");
+            Comment comment2 = new Comment();
+            comment2.setReview("Nice post!");
 
-            post.addDetails(details);
+            post.addComment(comment1);
+            post.addComment(comment2);
 
             entityManager.persist(post);
             return post;
@@ -68,24 +72,29 @@ public class CascadeOneToOneTest {
     @Test
     public void testMerge() {
         Post post = createNewPost();
+        post.setName("The New Post Name");
+
+        post.getComments()
+                .stream()
+                .filter(comment -> comment.getReview().toLowerCase()
+                        .contains("nice"))
+                .findAny()
+                .ifPresent(comment ->
+                        comment.setReview("Keep up the good work!")
+                );
         transactionTemplate.execute(status -> {
-            post.setName("The New Post Name");
-            post.getDetails().setVisible(true);
-
             entityManager.merge(post);
-
             return post;
         });
     }
 
     @Test
     public void testRemove() {
-        Long id = createNewPost().getId();
+        Post post = createNewPost();
         transactionTemplate.execute(new TransactionCallbackWithoutResult() {
             @Override
             protected void doInTransactionWithoutResult(TransactionStatus status) {
-                Post post = entityManager.find(Post.class, id);
-                entityManager.remove(post);
+                entityManager.remove(entityManager.merge(post));
             }
         });
     }
@@ -97,8 +106,7 @@ public class CascadeOneToOneTest {
             @Override
             protected void doInTransactionWithoutResult(TransactionStatus status) {
                 Post post = entityManager.find(Post.class, id);
-                System.out.println();
-                post.removeDetails();
+                post.removeComment(post.getComments().get(0));
             }
         });
 
@@ -109,9 +117,14 @@ public class CascadeOneToOneTest {
             Post post = new Post();
             post.setName("Post Name");
 
-            PostDetails details = new PostDetails();
+            Comment comment1 = new Comment();
+            comment1.setReview("Good post!");
+            Comment comment2 = new Comment();
+            comment2.setReview("Nice post!");
 
-            post.addDetails(details);
+            post.addComment(comment1);
+            post.addComment(comment2);
+
             entityManager.persist(post);
             return post;
         });

@@ -5,19 +5,20 @@ import com.ayuayu.jpa.entity.PostDetails;
 import com.ayuayu.jpa.repository.PostDetailsRepository;
 import com.ayuayu.jpa.repository.PostRepository;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.Commit;
 import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallbackWithoutResult;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
 @RunWith(SpringRunner.class)
-@Transactional
 @SpringBootTest
 public class CascadeOneToOneTest {
 
@@ -30,25 +31,88 @@ public class CascadeOneToOneTest {
     @Autowired
     private PostDetailsRepository postDetailsRepository;
 
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+
+    @Before
+    public void setUp() {
+    }
+
     @After
     public void tearDown() {
-//        postDetailsRepository.deleteAllInBatch();
-//        postRepository.deleteAllInBatch();
+        transactionTemplate.execute(new TransactionCallbackWithoutResult() {
+            @Override
+            protected void doInTransactionWithoutResult(TransactionStatus status) {
+                postDetailsRepository.deleteAllInBatch();
+                postRepository.deleteAllInBatch();
+            }
+        });
     }
 
 
     @Test
-    @Commit
     public void testPersist() {
-        Post post = new Post();
-        post.setName("Post Name");
+        transactionTemplate.execute(status -> {
+            Post post = new Post();
+            post.setName("Post Name");
 
-        PostDetails details = new PostDetails();
+            PostDetails details = new PostDetails();
 
-        post.addDetails(details);
+            post.addDetails(details);
 
-        entityManager.persist(post);
+            entityManager.persist(post);
+            return post;
+        });
+    }
+
+    @Test
+    public void testMerge() {
+        Post post = createNewPost();
+        post.setName("The New Post Name");
+        post.getDetails().setVisible(true);
+
+        transactionTemplate.execute(status -> {
+            entityManager.merge(post);
+            return post;
+        });
+    }
+
+    @Test
+    public void testRemove() {
+        Post post = createNewPost();
+        transactionTemplate.execute(new TransactionCallbackWithoutResult() {
+            @Override
+            protected void doInTransactionWithoutResult(TransactionStatus status) {
+                entityManager.remove(entityManager.merge(post));
+            }
+        });
+    }
+
+    @Test
+    public void testOrphanRemoval() {
+        Long id = createNewPost().getId();
+        transactionTemplate.execute(new TransactionCallbackWithoutResult() {
+            @Override
+            protected void doInTransactionWithoutResult(TransactionStatus status) {
+                Post post = entityManager.find(Post.class, id);
+                post.removeDetails();
+            }
+        });
 
     }
+
+    protected Post createNewPost() {
+        return transactionTemplate.execute(status -> {
+            Post post = new Post();
+            post.setName("Post Name");
+
+            PostDetails details = new PostDetails();
+
+            post.addDetails(details);
+            entityManager.persist(post);
+            return post;
+        });
+    }
+
 
 }

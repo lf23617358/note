@@ -1,10 +1,10 @@
 package com.ayuayu.jpa.repository;
 
-import com.ayuayu.jpa.entity.Post;
+import com.ayuayu.jpa.entity.Book;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
  * Item Repository
  */
-public interface PostRepository extends JpaRepository<Post, Integer> {
+public interface BookRepository extends JpaRepository<Book, Integer> {
 }
