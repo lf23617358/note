@@ -1,9 +1,5 @@
 package com.ayuayu.jpa;
 
-import com.ayuayu.jpa.entity.Comment;
-import com.ayuayu.jpa.entity.Post;
-import com.ayuayu.jpa.repository.CommentRepository;
-import com.ayuayu.jpa.repository.PostRepository;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -15,8 +11,9 @@ import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
+import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -25,11 +22,11 @@ public class CascadeOneToManayTest {
     @PersistenceContext
     private EntityManager entityManager;
 
-    @Autowired
-    private PostRepository postRepository;
+//    @Autowired
+//    private PostRepository postRepository;
 
-    @Autowired
-    private CommentRepository commentRepository;
+//    @Autowired
+//    private CommentRepository commentRepository;
 
     @Autowired
     private TransactionTemplate transactionTemplate;
@@ -43,8 +40,10 @@ public class CascadeOneToManayTest {
         transactionTemplate.execute(new TransactionCallbackWithoutResult() {
             @Override
             protected void doInTransactionWithoutResult(TransactionStatus status) {
-                commentRepository.deleteAllInBatch();
-                postRepository.deleteAllInBatch();
+                Query query = entityManager.createNativeQuery("delete from comment");
+                query.executeUpdate();
+                query = entityManager.createNativeQuery("delete from post");
+                query.executeUpdate();
             }
         });
     }
@@ -130,5 +129,72 @@ public class CascadeOneToManayTest {
         });
     }
 
+
+    @Entity
+    @Table(name = "post")
+    public static class Post {
+
+        @Id
+        @GeneratedValue(strategy = GenerationType.AUTO)
+        private Long id;
+
+        private String name;
+
+        @OneToMany(cascade = CascadeType.ALL,
+                mappedBy = "post", orphanRemoval = true)
+        private List<Comment> comments = new ArrayList<>();
+
+        public Long getId() {
+            return id;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public List<Comment> getComments() {
+            return comments;
+        }
+
+        public void addComment(Comment comment) {
+            comments.add(comment);
+            comment.setPost(this);
+        }
+
+        public void removeComment(Comment comment) {
+            comment.setPost(null);
+            this.comments.remove(comment);
+        }
+    }
+
+    @Entity
+    @Table(name = "comment")
+    public static class Comment {
+
+        @Id
+        @GeneratedValue(strategy = GenerationType.AUTO)
+        private Long id;
+
+        @ManyToOne
+        private Post post;
+
+        private String review;
+
+        public void setPost(Post post) {
+            this.post = post;
+        }
+
+        public String getReview() {
+            return review;
+        }
+
+        public void setReview(String review) {
+            this.review = review;
+        }
+    }
 
 }

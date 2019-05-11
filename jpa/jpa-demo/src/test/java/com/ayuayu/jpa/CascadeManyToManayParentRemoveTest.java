@@ -15,12 +15,20 @@ import javax.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.Assert.assertEquals;
+
 @RunWith(SpringRunner.class)
 @SpringBootTest
-public class CascadeManyToManayTest {
+public class CascadeManyToManayParentRemoveTest {
 
     @PersistenceContext
     private EntityManager entityManager;
+
+//    @Autowired
+//    private AuthorRepository authorRepository;
+//
+//    @Autowired
+//    private BookRepository bookRepository;
 
     @Autowired
     private TransactionTemplate transactionTemplate;
@@ -44,88 +52,32 @@ public class CascadeManyToManayTest {
         });
     }
 
-
     @Test
-    public void testPersist() {
-        transactionTemplate.execute(new TransactionCallbackWithoutResult() {
-            @Override
-            protected void doInTransactionWithoutResult(TransactionStatus status) {
-                Author _John_Smith = new Author(1l,"John Smith");
-                Author _Michelle_Diangello =
-                        new Author(3l,"Michelle Diangello");
-                Author _Mark_Armstrong =
-                        new Author(5l,"Mark Armstrong");
-
-                Book _Day_Dreaming = new Book(2l,"Day Dreaming");
-                Book _Day_Dreaming_2nd =
-                        new Book(4l,"Day Dreaming, Second Edition");
-
-                _John_Smith.addBook(_Day_Dreaming);
-                _Michelle_Diangello.addBook(_Day_Dreaming);
-
-                _John_Smith.addBook(_Day_Dreaming_2nd);
-                _Michelle_Diangello.addBook(_Day_Dreaming_2nd);
-                _Mark_Armstrong.addBook(_Day_Dreaming_2nd);
-
-                entityManager.persist(_John_Smith);
-                entityManager.persist(_Michelle_Diangello);
-                entityManager.persist(_Mark_Armstrong);
-            }
-        });
-    }
-
-    @Test
-    public void testMerge() {
-        List<Author> authors = createNewAuthors();
-        authors.get(1).setFullName("New Mark Armstrong");
-        authors.get(0).getBooks().get(1).setTitle("Day Dreaming, Third Edition");
-
-        transactionTemplate.execute(status -> {
-            entityManager.merge(authors.get(0));
-            entityManager.merge(authors.get(1));
-            return authors;
-        });
-    }
-
-    @Test
-    public void testDissociatingRemove() {
+    public void testRemove() {
         createNewAuthors();
         transactionTemplate.execute(new TransactionCallbackWithoutResult() {
             @Override
             protected void doInTransactionWithoutResult(TransactionStatus status) {
                 Author _Mark_Armstrong = entityManager.find(Author.class, 5l);
-                System.out.println("begin removeAllBooks");
-                _Mark_Armstrong.removeAllBooks();
-                System.out.println("after removeAllBooks");
                 entityManager.remove(_Mark_Armstrong);
+                entityManager.flush();
+                Author _John_Smith = entityManager.find(Author.class, 1l);
+                assertEquals(1, _John_Smith.getBooks().size());
             }
         });
     }
-//
-//    @Test
-//    public void testOrphanRemoval() {
-//        Long id = createNewPost().getId();
-//        transactionTemplate.execute(new TransactionCallbackWithoutResult() {
-//            @Override
-//            protected void doInTransactionWithoutResult(TransactionStatus status) {
-//                Post post = entityManager.find(Post.class, id);
-//                post.removeComment(post.getComments().get(0));
-//            }
-//        });
-//
-//    }
 
     protected List<Author> createNewAuthors() {
         return transactionTemplate.execute(status -> {
-            Author _John_Smith = new Author(1l,"John Smith");
+            Author _John_Smith = new Author("John Smith");
             Author _Michelle_Diangello =
-                    new Author(3l,"Michelle Diangello");
+                    new Author("Michelle Diangello");
             Author _Mark_Armstrong =
-                    new Author(5l,"Mark Armstrong");
+                    new Author("Mark Armstrong");
 
-            Book _Day_Dreaming = new Book(2l,"Day Dreaming");
+            Book _Day_Dreaming = new Book("Day Dreaming");
             Book _Day_Dreaming_2nd =
-                    new Book(4l,"Day Dreaming, Second Edition");
+                    new Book("Day Dreaming, Second Edition");
 
             _John_Smith.addBook(_Day_Dreaming);
             _Michelle_Diangello.addBook(_Day_Dreaming);
@@ -151,20 +103,20 @@ public class CascadeManyToManayTest {
     public static class Author {
 
         @Id
+        @GeneratedValue(strategy = GenerationType.AUTO)
         private Long id;
 
         @Column(name = "full_name", nullable = false)
         private String fullName;
 
         @ManyToMany(mappedBy = "authors",
-                cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+                cascade = CascadeType.ALL)
         private List<Book> books = new ArrayList<>();
 
         private Author() {
         }
 
-        public Author(Long id, String fullName) {
-            this.id = id;
+        public Author(String fullName) {
             this.fullName = fullName;
         }
 
@@ -206,6 +158,7 @@ public class CascadeManyToManayTest {
     public static class Book {
 
         @Id
+        @GeneratedValue(strategy = GenerationType.AUTO)
         private Long id;
 
         @Column(name = "title", nullable = false)
@@ -232,11 +185,9 @@ public class CascadeManyToManayTest {
         private Book() {
         }
 
-        public Book(Long id, String title) {
-            this.id = id;
+        public Book(String title) {
             this.title = title;
         }
-
 
         public String getTitle() {
             return title;
@@ -249,7 +200,6 @@ public class CascadeManyToManayTest {
         public List<Author> getAuthors() {
             return authors;
         }
-
     }
 
 
